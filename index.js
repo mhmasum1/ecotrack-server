@@ -13,7 +13,7 @@ app.use(express.json());
 const DB_NAME = "ecotrack";
 
 // Build MongoDB URI using username + password from .env
-const uri = `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@cluster0.ohbvs.mongodb.net/${DB_NAME}?retryWrites=true&w=majority&appName=Cluster0`;
+const uri = `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@cluster0.oeyfvq1.mongodb.net/${DB_NAME}?retryWrites=true&w=majority&appName=Cluster0`;
 
 // MongoDB Connection
 mongoose
