@@ -237,8 +237,188 @@ app.delete("/users/:id", async (req, res) => {
     }
 });
 
+app.get("/api/challenges", async (req, res) => {
+    try {
+        const {
+            category,
+            minParticipants,
+            maxParticipants,
+            startFrom,
+            startTo,
+        } = req.query;
 
+        const filter = {};
 
+        // category filtering (comma separated)
+        if (category) {
+            const categories = category.split(",");
+            filter.category = { $in: categories };
+        }
+
+        // participants range
+        if (minParticipants || maxParticipants) {
+            filter.participants = {};
+            if (minParticipants) {
+                filter.participants.$gte = Number(minParticipants);
+            }
+            if (maxParticipants) {
+                filter.participants.$lte = Number(maxParticipants);
+            }
+        }
+
+        // startDate range
+        if (startFrom || startTo) {
+            filter.startDate = {};
+            if (startFrom) {
+                filter.startDate.$gte = new Date(startFrom);
+            }
+            if (startTo) {
+                filter.startDate.$lte = new Date(startTo);
+            }
+        }
+
+        const challenges = await Challenge.find(filter).sort({ createdAt: -1 });
+        res.json(challenges);
+    } catch (error) {
+        console.error("Error fetching challenges:", error.message);
+        res.status(500).json({
+            message: "Error fetching challenges",
+            error: error.message,
+        });
+    }
+});
+
+// GET /api/challenges/:id - get single challenge
+app.get("/api/challenges/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const challenge = await Challenge.findById(id);
+
+        if (!challenge) {
+            return res.status(404).json({ message: "Challenge not found" });
+        }
+
+        res.json(challenge);
+    } catch (error) {
+        console.error("Error fetching challenge:", error.message);
+        res.status(500).json({
+            message: "Error fetching challenge",
+            error: error.message,
+        });
+    }
+});
+
+// POST /api/challenges - create new challenge
+app.post("/api/challenges", async (req, res) => {
+    try {
+        const challenge = new Challenge(req.body);
+        const savedChallenge = await challenge.save();
+        res.status(201).json(savedChallenge);
+    } catch (error) {
+        console.error("Error creating challenge:", error.message);
+        res.status(500).json({
+            message: "Error creating challenge",
+            error: error.message,
+        });
+    }
+});
+
+// PATCH /api/challenges/:id - update challenge
+app.patch("/api/challenges/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const updatedChallenge = await Challenge.findByIdAndUpdate(
+            id,
+            req.body,
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedChallenge) {
+            return res.status(404).json({ message: "Challenge not found" });
+        }
+
+        res.json(updatedChallenge);
+    } catch (error) {
+        console.error("Error updating challenge:", error.message);
+        res.status(500).json({
+            message: "Error updating challenge",
+            error: error.message,
+        });
+    }
+});
+
+// DELETE /api/challenges/:id - delete challenge
+app.delete("/api/challenges/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const deletedChallenge = await Challenge.findByIdAndDelete(id);
+        if (!deletedChallenge) {
+            return res.status(404).json({ message: "Challenge not found" });
+        }
+
+        res.json({ message: "Challenge deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting challenge:", error.message);
+        res.status(500).json({
+            message: "Error deleting challenge",
+            error: error.message,
+        });
+    }
+});
+
+// POST /api/challenges/join/:id - user joins a challenge
+app.post("/api/challenges/join/:id", async (req, res) => {
+    try {
+        const { id } = req.params; // challengeId
+        const { userId } = req.body; // frontend theke pathabe
+
+        if (!userId) {
+            return res
+                .status(400)
+                .json({ message: "userId is required to join challenge" });
+        }
+
+        // 1) Challenge participants +1
+        const challenge = await Challenge.findByIdAndUpdate(
+            id,
+            { $inc: { participants: 1 } },
+            { new: true }
+        );
+
+        if (!challenge) {
+            return res.status(404).json({ message: "Challenge not found" });
+        }
+
+        // 2) UserChallenge create
+        const userChallenge = new UserChallenge({
+            userId,
+            challengeId: id,
+            status: "Ongoing",
+            progress: 0,
+        });
+
+        const savedUserChallenge = await userChallenge.save();
+
+        res.status(201).json({
+            message: "Joined challenge successfully",
+            challenge,
+            userChallenge: savedUserChallenge,
+        });
+    } catch (error) {
+        console.error("Error joining challenge:", error.message);
+        res.status(500).json({
+            message: "Error joining challenge",
+            error: error.message,
+        });
+    }
+});
+
+// ---------- 404 Handler ----------
+app.use((req, res) => {
+    res.status(404).json({ message: "Route not found" });
+});
 
 // Listen
 const port = process.env.PORT || 5000;
