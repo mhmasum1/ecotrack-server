@@ -68,19 +68,31 @@ app.post("/users", async (req, res) => {
     try {
         const { name, email } = req.body;
 
+        // basic validation
+        if (!name || !email) {
+            return res.status(400).json({
+                message: "name and email are required",
+            });
+        }
+
         const user = new User({ name, email });
         const savedUser = await user.save();
 
         res.status(201).json(savedUser);
     } catch (error) {
         console.error("Error creating user:", error.message);
+
+        // handle duplicate email error
+        if (error.code === 11000) {
+            return res.status(400).json({
+                message: "Email already exists",
+            });
+        }
+
         res
             .status(500)
             .json({ message: "Error creating user", error: error.message });
     }
-});
-app.use((req, res) => {
-    res.status(404).json({ message: "Route not found" });
 });
 
 
