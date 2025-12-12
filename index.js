@@ -94,6 +94,69 @@ app.post("/users", async (req, res) => {
             .json({ message: "Error creating user", error: error.message });
     }
 });
+// GET /users/:id - get single user by id
+app.get("/users/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = await User.findById(id);
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json(user);
+    } catch (error) {
+        console.error("Error fetching user:", error.message);
+        res
+            .status(500)
+            .json({ message: "Error fetching user", error: error.message });
+    }
+});
+
+// PUT /users/:id - update user
+app.put("/users/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, email } = req.body;
+
+        const updatedUser = await User.findByIdAndUpdate(
+            id,
+            { name, email },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json(updatedUser);
+    } catch (error) {
+        console.error("Error updating user:", error.message);
+        res
+            .status(500)
+            .json({ message: "Error updating user", error: error.message });
+    }
+});
+
+// DELETE /users/:id - delete user
+app.delete("/users/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deletedUser = await User.findByIdAndDelete(id);
+
+        if (!deletedUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json({ message: "User deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting user:", error.message);
+        res
+            .status(500)
+            .json({ message: "Error deleting user", error: error.message });
+    }
+});
+
 
 
 
