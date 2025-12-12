@@ -44,6 +44,86 @@ const userSchema = new mongoose.Schema(
 
 const User = mongoose.model("User", userSchema);
 
+// ---------- Mongoose Model (Challenge) ----------
+const challengeSchema = new mongoose.Schema(
+    {
+        title: {
+            type: String,
+            required: true,
+        },
+        category: {
+            type: String,
+            required: true, // e.g. "Waste Reduction", "Energy Saving"
+        },
+        description: {
+            type: String,
+        },
+        duration: {
+            type: Number, // days
+        },
+        target: {
+            type: String, // e.g. "Reduce waste by 2kg/week"
+        },
+        participants: {
+            type: Number,
+            default: 0,
+        },
+        impactMetric: {
+            type: String, // e.g. "kg CO2 saved"
+        },
+        createdBy: {
+            type: String, // e.g. admin email / name
+        },
+        startDate: {
+            type: Date,
+        },
+        endDate: {
+            type: Date,
+        },
+        imageUrl: {
+            type: String,
+        },
+    },
+    {
+        timestamps: true,
+    }
+);
+
+const Challenge = mongoose.model("Challenge", challengeSchema);
+
+// ---------- Mongoose Model (UserChallenge) ----------
+const userChallengeSchema = new mongoose.Schema(
+    {
+        userId: {
+            type: String, // tumi email / auth uid use korte paro
+            required: true,
+        },
+        challengeId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Challenge",
+            required: true,
+        },
+        status: {
+            type: String,
+            enum: ["Not Started", "Ongoing", "Finished"],
+            default: "Ongoing",
+        },
+        progress: {
+            type: Number,
+            default: 0, // percentage (0–100)
+        },
+        joinDate: {
+            type: Date,
+            default: Date.now,
+        },
+    },
+    {
+        timestamps: true,
+    }
+);
+
+const UserChallenge = mongoose.model("UserChallenge", userChallengeSchema);
+
 
 // Test Route
 app.get("/", (req, res) => {
