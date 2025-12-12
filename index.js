@@ -38,7 +38,7 @@ const userSchema = new mongoose.Schema(
         },
     },
     {
-        timestamps: true, // createdAt, updatedAt
+        timestamps: true,
     }
 );
 
@@ -53,26 +53,26 @@ const challengeSchema = new mongoose.Schema(
         },
         category: {
             type: String,
-            required: true, // e.g. "Waste Reduction", "Energy Saving"
+            required: true,
         },
         description: {
             type: String,
         },
         duration: {
-            type: Number, // days
+            type: Number,
         },
         target: {
-            type: String, // e.g. "Reduce waste by 2kg/week"
+            type: String,
         },
         participants: {
             type: Number,
             default: 0,
         },
         impactMetric: {
-            type: String, // e.g. "kg CO2 saved"
+            type: String,
         },
         createdBy: {
-            type: String, // e.g. admin email / name
+            type: String,
         },
         startDate: {
             type: Date,
@@ -95,7 +95,7 @@ const Challenge = mongoose.model("Challenge", challengeSchema);
 const userChallengeSchema = new mongoose.Schema(
     {
         userId: {
-            type: String, // tumi email / auth uid use korte paro
+            type: String,
             required: true,
         },
         challengeId: {
@@ -368,52 +368,113 @@ app.delete("/api/challenges/:id", async (req, res) => {
     }
 });
 
-// POST /api/challenges/join/:id - user joins a challenge
-app.post("/api/challenges/join/:id", async (req, res) => {
+// GET /api/user-challenges?userId=someone@gmail.com
+app.get("/api/user-challenges", async (req, res) => {
     try {
-        const { id } = req.params; // challengeId
-        const { userId } = req.body; // frontend theke pathabe
+        const { userId } = req.query;
 
-        if (!userId) {
-            return res
-                .status(400)
-                .json({ message: "userId is required to join challenge" });
+        const filter = {};
+        if (userId) {
+            filter.userId = userId;
         }
 
-        // 1) Challenge participants +1
-        const challenge = await Challenge.findByIdAndUpdate(
-            id,
-            { $inc: { participants: 1 } },
-            { new: true }
-        );
+        const userChallenges = await UserChallenge.find(filter)
+            .populate("challengeId")
+            .sort({ createdAt: -1 });
 
-        if (!challenge) {
-            return res.status(404).json({ message: "Challenge not found" });
-        }
-
-        // 2) UserChallenge create
-        const userChallenge = new UserChallenge({
-            userId,
-            challengeId: id,
-            status: "Ongoing",
-            progress: 0,
-        });
-
-        const savedUserChallenge = await userChallenge.save();
-
-        res.status(201).json({
-            message: "Joined challenge successfully",
-            challenge,
-            userChallenge: savedUserChallenge,
-        });
+        res.json(userChallenges);
     } catch (error) {
-        console.error("Error joining challenge:", error.message);
+        console.error("Error fetching user challenges:", error.message);
         res.status(500).json({
-            message: "Error joining challenge",
+            message: "Error fetching user challenges",
             error: error.message,
         });
     }
 });
+
+// PATCH /api/user-challenges/:id - update user challenge (progress/status)
+app.patch("/api/user-challenges/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, progress } = req.body;
+
+        const update = {};
+        if (status) update.status = status;
+        if (typeof progress === "number") update.progress = progress;
+
+        const updated = await UserChallenge.findByIdAndUpdate(id, update, {
+            new: true,
+            runValidators: true,
+        });
+
+        if (!updated) {
+            return res.status(404).json({ message: "User challenge not found" });
+        }
+
+        res.json(updated);
+    } catch (error) {
+        console.error("Error updating user challenge:", error.message);
+        res.status(500).json({
+            message: "Error updating user challenge",
+            error: error.message,
+        });
+    }
+});
+
+// GET /api/user-challenges?userId=someone@gmail.com
+app.get("/api/user-challenges", async (req, res) => {
+    try {
+        const { userId } = req.query;
+
+        const filter = {};
+        if (userId) {
+            filter.userId = userId;
+        }
+
+        const userChallenges = await UserChallenge.find(filter)
+            .populate("challengeId")
+            .sort({ createdAt: -1 });
+
+        res.json(userChallenges);
+    } catch (error) {
+        console.error("Error fetching user challenges:", error.message);
+        res.status(500).json({
+            message: "Error fetching user challenges",
+            error: error.message,
+        });
+    }
+});
+
+// PATCH /api/user-challenges/:id 
+app.patch("/api/user-challenges/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, progress } = req.body;
+
+        const update = {};
+        if (status) update.status = status;
+        if (typeof progress === "number") update.progress = progress;
+
+        const updated = await UserChallenge.findByIdAndUpdate(id, update, {
+            new: true,
+            runValidators: true,
+        });
+
+        if (!updated) {
+            return res.status(404).json({ message: "User challenge not found" });
+        }
+
+        res.json(updated);
+    } catch (error) {
+        console.error("Error updating user challenge:", error.message);
+        res.status(500).json({
+            message: "Error updating user challenge",
+            error: error.message,
+        });
+    }
+});
+
+
 
 // ---------- 404 Handler ----------
 app.use((req, res) => {
