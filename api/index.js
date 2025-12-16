@@ -621,8 +621,5 @@ app.use((req, res) => {
     res.status(404).json({ message: "Route not found" });
 });
 
-// Listen
-const port = process.env.PORT || 5000;
-app.listen(port, () => {
-    console.log("EcoTrack server running on port", port);
-});
+// no app.listen here (Vercel handles it)
+module.exports = app;
