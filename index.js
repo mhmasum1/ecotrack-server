@@ -81,6 +81,14 @@ const challengeSchema = new mongoose.Schema(
         imageUrl: {
             type: String,
         },
+        co2KgPerParticipant: {
+            type: Number,
+            default: 0,
+        },
+        plasticKgPerParticipant: {
+            type: Number,
+            default: 0,
+        },
     },
     {
         timestamps: true,
@@ -284,6 +292,76 @@ app.delete("/users/:id", async (req, res) => {
     }
 });
 
+// POST /api/challenges/join/:id - join challenge (creates userChallenge + increments participants)
+app.post("/api/challenges/join/:id", async (req, res) => {
+    const session = await mongoose.startSession();
+
+    try {
+        const { id } = req.params; // challengeId
+        const { userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ message: "userId is required" });
+        }
+
+        session.startTransaction();
+
+        const challenge = await Challenge.findById(id).session(session);
+        if (!challenge) {
+            await session.abortTransaction();
+            return res.status(404).json({ message: "Challenge not found" });
+        }
+
+        const alreadyJoined = await UserChallenge.findOne({
+            userId,
+            challengeId: id,
+        }).session(session);
+
+        if (alreadyJoined) {
+            await session.abortTransaction();
+            return res.status(409).json({ message: "You already joined this challenge" });
+        }
+
+        const joinRecord = await UserChallenge.create(
+            [
+                {
+                    userId,
+                    challengeId: id,
+                    status: "Ongoing",
+                    progress: 0,
+                    joinDate: new Date(),
+                },
+            ],
+            { session }
+        );
+
+        await Challenge.findByIdAndUpdate(
+            id,
+            { $inc: { participants: 1 } },
+            { new: true, session }
+        );
+
+        await session.commitTransaction();
+
+        return res.status(201).json({
+            message: "Joined challenge successfully",
+            data: joinRecord[0],
+        });
+    } catch (error) {
+        try {
+            await session.abortTransaction();
+        } catch (e) { }
+        console.error("Error joining challenge:", error.message);
+        return res.status(500).json({
+            message: "Error joining challenge",
+            error: error.message,
+        });
+    } finally {
+        session.endSession();
+    }
+});
+
+
 // GET /api/challenges
 app.get("/api/challenges", async (req, res) => {
     try {
@@ -482,6 +560,61 @@ app.get("/api/events", async (req, res) => {
         res.status(500).json({ message: "Error fetching events", error: error.message });
     }
 });
+
+// GET /api/stats - live community totals
+app.get("/api/stats", async (req, res) => {
+    try {
+        const now = new Date();
+
+        const [totalUsers, totalChallenges, totalTips, totalJoinedChallenges, upcomingEvents, agg] =
+            await Promise.all([
+                User.countDocuments(),
+                Challenge.countDocuments(),
+                Tip.countDocuments(),
+                UserChallenge.countDocuments(),
+                Event.countDocuments({ date: { $gte: now } }),
+                Challenge.aggregate([
+                    {
+                        $group: {
+                            _id: null,
+                            totalParticipants: { $sum: "$participants" },
+                            totalCO2SavedKg: {
+                                $sum: {
+                                    $multiply: ["$participants", { $ifNull: ["$co2KgPerParticipant", 0] }],
+                                },
+                            },
+                            totalPlasticReducedKg: {
+                                $sum: {
+                                    $multiply: ["$participants", { $ifNull: ["$plasticKgPerParticipant", 0] }],
+                                },
+                            },
+                        },
+                    },
+                ]),
+            ]);
+
+        const summary = agg?.[0] || {
+            totalParticipants: 0,
+            totalCO2SavedKg: 0,
+            totalPlasticReducedKg: 0,
+        };
+
+        res.json({
+            totalUsers,
+            totalChallenges,
+            totalTips,
+            totalJoinedChallenges,
+            upcomingEvents,
+            totalParticipants: summary.totalParticipants,
+            totalCO2SavedKg: summary.totalCO2SavedKg,
+            totalPlasticReducedKg: summary.totalPlasticReducedKg,
+        });
+    } catch (error) {
+        console.error("Error fetching stats:", error.message);
+        res.status(500).json({ message: "Error fetching stats", error: error.message });
+    }
+});
+
 
 // ---------- 404 Handler ----------
 app.use((req, res) => {
