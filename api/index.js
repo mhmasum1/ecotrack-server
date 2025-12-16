@@ -6,8 +6,17 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const app = express();
-
-app.use(cors());
+// ✅ CORS CONFIG (FIREBASE + LOCAL)
+app.use(
+    cors({
+        origin: [
+            "http://localhost:5173",
+            "https://ecotrack-sustainable.web.app",
+            "https://ecotrack-sustainable.firebaseapp.com",
+        ],
+        credentials: true,
+    })
+);
 app.use(express.json());
 
 const DB_NAME = "ecotrack";
